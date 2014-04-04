@@ -47,15 +47,17 @@ public class xmppsettings extends Dialog implements android.view.View.OnClickLis
         // Create connection
 
         connectionConfig = new ConnectionConfiguration(host, Integer.parseInt(port), service);
-        connectionConfig.setSASLAuthenticationEnabled(false);
-        connectionConfig.setTruststoreType("BKS");
+
+        connectionConfig.setSecurityMode(ConnectionConfiguration.SecurityMode.enabled); // -\__ Required for OpenFire login
+        connectionConfig.setSocketFactory(new DummySSLSocketFactory());                 // _/
+
+
+       // connectionConfig.setSASLAuthenticationEnabled(false); // required for talk.google.com
+        //connectionConfig.setTruststoreType("BKS");            // required for talk.google.com
         connection = new XMPPConnection(connectionConfig);
-
         new ConnectToXmpp().execute();
-
     }
     private class ConnectToXmpp extends AsyncTask<Void, Void, Void> {
-
         @Override
         protected Void doInBackground(Void... params) {
             try {
