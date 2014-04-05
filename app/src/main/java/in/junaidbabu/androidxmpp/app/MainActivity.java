@@ -15,13 +15,18 @@ import android.widget.ListView;
 
 import org.jivesoftware.smack.PacketListener;
 import org.jivesoftware.smack.XMPPConnection;
+import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.filter.MessageTypeFilter;
 import org.jivesoftware.smack.filter.PacketFilter;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
 import org.jivesoftware.smack.util.StringUtils;
+import org.jivesoftware.smackx.filetransfer.FileTransfer;
+import org.jivesoftware.smackx.filetransfer.FileTransferManager;
+import org.jivesoftware.smackx.filetransfer.OutgoingFileTransfer;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 
@@ -58,9 +63,13 @@ public class MainActivity extends Activity {
                 String to = recipient.getText().toString();
                 String text1 = text.getText().toString();
 
-                CustomMessage msg = new CustomMessage(to, Message.Type.chat);
+                //Message msg = new Message();
+                CustomMessage msg = new CustomMessage();
+                msg.setTo(to);
+                msg.setType(Message.Type.chat);
                 msg.setBody(text1);
                 msg.setCustomStanza("this was a custom text");
+                Log.i("Custom message about to be sent", msg.toXML());
                 connection.sendPacket(msg);
                 messages.add(connection.getUser() + ":");
                 messages.add(text1);
@@ -68,40 +77,8 @@ public class MainActivity extends Activity {
             }
         });
     }
-    IQ i;
+
     //Called by settings when connection is established
-    public static String dump(Object object) {
-        Field[] fields = object.getClass().getDeclaredFields();
-        StringBuilder sb = new StringBuilder();
-        sb.append(object.getClass().getSimpleName()).append('{');
-
-        boolean firstRound = true;
-
-        for (Field field : fields) {
-            if (!firstRound) {
-                sb.append(", ");
-            }
-            firstRound = false;
-            field.setAccessible(true);
-            try {
-                final Object fieldObj = field.get(object);
-                final String value;
-                if (null == fieldObj) {
-                    value = "null";
-                } else {
-                    value = fieldObj.toString();
-                }
-                sb.append(field.getName()).append('=').append('\'')
-                        .append(value).append('\'');
-            } catch (IllegalAccessException ignore) {
-                //this should never happen
-            }
-
-        }
-
-        sb.append('}');
-        return sb.toString();
-    }
     public void setConnection (XMPPConnection connection) {
         this.connection = connection;
         if (connection != null) {
@@ -109,14 +86,15 @@ public class MainActivity extends Activity {
             //Packet listener to get messages sent to logged in user
             PacketFilter filter = new MessageTypeFilter(Message.Type.chat);
             connection.addPacketListener(new PacketListener() {
-                public void processPacket(Packet packet) {
-                    CustomMessage message = (CustomMessage) packet;
+                public void processPacket(Packet packet) {      // For messages with custom item, we need custom Packet itself. No idea how to do that right now. I'll come back later.
+                    Log.i("Packet to xml", packet.toXML());
+
+                    //CustomMessage message = (CustomMessage) packet;
+
+                    Message message = (Message) packet;
                     if (message.getBody() != null) {
                         //XStream a;
-                       // Log.i("Entire XML", message.toXML());
-                        Log.i("Message to String",dump(message));
-                        Log.i("Bodies to String", dump(message.getBodies()));
-                        Log.i("Body", dump(message.getBody()));
+                        Log.i("Entire XML", message.toXML());   // This should give the entire packet
                       //  Log.i("Custom text", message.getCustomStanza());
 
                         String fromName = StringUtils.parseBareAddress(message.getFrom());
