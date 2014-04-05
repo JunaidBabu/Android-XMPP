@@ -58,8 +58,9 @@ public class MainActivity extends Activity {
                 String to = recipient.getText().toString();
                 String text1 = text.getText().toString();
 
-                Message msg = new Message(to, Message.Type.chat);
+                CustomMessage msg = new CustomMessage(to, Message.Type.chat);
                 msg.setBody(text1);
+                msg.setCustomStanza("this was a custom text");
                 connection.sendPacket(msg);
                 messages.add(connection.getUser() + ":");
                 messages.add(text1);
@@ -109,12 +110,15 @@ public class MainActivity extends Activity {
             PacketFilter filter = new MessageTypeFilter(Message.Type.chat);
             connection.addPacketListener(new PacketListener() {
                 public void processPacket(Packet packet) {
-                    Message message = (Message) packet;
+                    CustomMessage message = (CustomMessage) packet;
                     if (message.getBody() != null) {
                         //XStream a;
-
+                       // Log.i("Entire XML", message.toXML());
                         Log.i("Message to String",dump(message));
-                        Log.i("Body to String", dump(message.getBodies()));
+                        Log.i("Bodies to String", dump(message.getBodies()));
+                        Log.i("Body", dump(message.getBody()));
+                      //  Log.i("Custom text", message.getCustomStanza());
+
                         String fromName = StringUtils.parseBareAddress(message.getFrom());
                         messages.add(fromName + ":");
                         messages.add(message.getBody());
