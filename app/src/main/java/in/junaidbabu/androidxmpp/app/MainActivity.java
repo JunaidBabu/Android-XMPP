@@ -1,6 +1,7 @@
 package in.junaidbabu.androidxmpp.app;
 
 import android.app.Activity;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Bundle;
 import android.util.Log;
@@ -21,10 +22,19 @@ import org.jivesoftware.smack.filter.PacketFilter;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
+import org.jivesoftware.smack.provider.ProviderManager;
 import org.jivesoftware.smack.util.StringUtils;
+import org.jivesoftware.smackx.ServiceDiscoveryManager;
 import org.jivesoftware.smackx.filetransfer.FileTransfer;
+import org.jivesoftware.smackx.filetransfer.FileTransferListener;
 import org.jivesoftware.smackx.filetransfer.FileTransferManager;
+import org.jivesoftware.smackx.filetransfer.FileTransferNegotiator;
+import org.jivesoftware.smackx.filetransfer.FileTransferRequest;
+import org.jivesoftware.smackx.filetransfer.IncomingFileTransfer;
 import org.jivesoftware.smackx.filetransfer.OutgoingFileTransfer;
+import org.jivesoftware.smackx.provider.BytestreamsProvider;
+import org.jivesoftware.smackx.provider.DiscoverInfoProvider;
+import org.jivesoftware.smackx.provider.DiscoverItemsProvider;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -76,12 +86,50 @@ public class MainActivity extends Activity {
                 setListAdapter();
             }
         });
-    }
 
+
+    }
+    public void send(View v){
+        new ServiceDiscoveryManager(connection);
+        FileTransferManager manager = new FileTransferManager(connection);
+        OutgoingFileTransfer transfer = manager.createOutgoingFileTransfer(recipient.getText().toString());
+        File file = new File("/storage/sdcard0/Download/calvin.jpg");
+        //File file = new File("/storage/emulated/0/temp_photo.jpg");
+
+        try {
+            transfer.sendFile(file, "test_file");
+        } catch (XMPPException e) {
+            e.printStackTrace();
+        }
+        while(!transfer.isDone()) {
+            if(transfer.getStatus().equals(FileTransfer.Status.error)) {
+                System.out.println("ERROR!!! " + transfer.getError());
+            } else if (transfer.getStatus().equals(FileTransfer.Status.cancelled)
+                    || transfer.getStatus().equals(FileTransfer.Status.refused)) {
+                System.out.println("Cancelled!!! " + transfer.getError());
+            }
+            try {
+                Thread.sleep(1000L);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        if(transfer.getStatus().equals(FileTransfer.Status.refused) || transfer.getStatus().equals(FileTransfer.Status.error)
+                || transfer.getStatus().equals(FileTransfer.Status.cancelled)){
+            Log.i("File Transfer status", transfer.getStatus().toString());
+            System.out.println("refused cancelled error " + transfer.getError());
+        } else {
+            System.out.println("Success");
+        }
+    }
     //Called by settings when connection is established
     public void setConnection (XMPPConnection connection) {
         this.connection = connection;
+        ProviderManager.getInstance().addIQProvider("query","http://jabber.org/protocol/bytestreams", new BytestreamsProvider());
+        ProviderManager.getInstance().addIQProvider("query","http://jabber.org/protocol/disco#items", new DiscoverItemsProvider());
+        ProviderManager.getInstance().addIQProvider("query","http://jabber.org/protocol/disco#info", new DiscoverInfoProvider());
         if (connection != null) {
+
             Log.i("Log main", "Phew, connection is not null");
             //Packet listener to get messages sent to logged in user
             PacketFilter filter = new MessageTypeFilter(Message.Type.chat);
@@ -108,6 +156,52 @@ public class MainActivity extends Activity {
                     }
                 }
             }, filter);
+
+            //File receiving
+            ServiceDiscoveryManager sdm = ServiceDiscoveryManager.getInstanceFor(connection);
+            if(sdm == null)
+            {
+                sdm = new ServiceDiscoveryManager(connection);
+                sdm.addFeature("http://jabber.org/protocol/disco#info");
+                sdm.addFeature("http://jabber.org/protocol/disco#item");
+                sdm.addFeature("jabber:iq:privacy");
+
+                XMPPConnection.DEBUG_ENABLED = true;
+            }
+            FileTransferManager manager = new FileTransferManager(connection);
+            FileTransferNegotiator.setServiceEnabled(connection, true);
+            manager.addFileTransferListener(new FileTransferListener() {
+                public void fileTransferRequest(final FileTransferRequest request) {
+                    new Thread(){
+                        @Override
+                        public void run() {
+                            Log.i("We are in the run","No idea who is running");
+                            IncomingFileTransfer transfer = request.accept();
+                            //File mf = Environment.getExternalStorageDirectory();
+                            //File file = new File(mf.getAbsoluteFile()+"/storage/sdcard0/xmpptest/" + transfer.getFileName());
+                            File file = new File("/storage/sdcard0/xmpptest/" + transfer.getFileName());
+                            try{
+                                transfer.recieveFile(file);
+                                while(!transfer.isDone()) {
+                                    try{
+                                        Thread.sleep(1000L);
+                                    }catch (Exception e) {
+                                        Log.e("", e.getMessage());
+                                    }
+                                    if(transfer.getStatus().equals(FileTransfer.Status.error)) {
+                                        Log.e("ERROR!!! ", transfer.getError() + "");
+                                    }
+                                    if(transfer.getException() != null) {
+                                        transfer.getException().printStackTrace();
+                                    }
+                                }
+                            }catch (Exception e) {
+                                Log.e("", e.getMessage());
+                            }
+                        };
+                    }.start();
+                }
+            });
         }
     }
 
