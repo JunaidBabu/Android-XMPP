@@ -17,10 +17,12 @@ import org.jivesoftware.smack.PacketListener;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.filter.MessageTypeFilter;
 import org.jivesoftware.smack.filter.PacketFilter;
+import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
 import org.jivesoftware.smack.util.StringUtils;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
@@ -65,9 +67,40 @@ public class MainActivity extends Activity {
             }
         });
     }
-
+    IQ i;
     //Called by settings when connection is established
+    public static String dump(Object object) {
+        Field[] fields = object.getClass().getDeclaredFields();
+        StringBuilder sb = new StringBuilder();
+        sb.append(object.getClass().getSimpleName()).append('{');
 
+        boolean firstRound = true;
+
+        for (Field field : fields) {
+            if (!firstRound) {
+                sb.append(", ");
+            }
+            firstRound = false;
+            field.setAccessible(true);
+            try {
+                final Object fieldObj = field.get(object);
+                final String value;
+                if (null == fieldObj) {
+                    value = "null";
+                } else {
+                    value = fieldObj.toString();
+                }
+                sb.append(field.getName()).append('=').append('\'')
+                        .append(value).append('\'');
+            } catch (IllegalAccessException ignore) {
+                //this should never happen
+            }
+
+        }
+
+        sb.append('}');
+        return sb.toString();
+    }
     public void setConnection (XMPPConnection connection) {
         this.connection = connection;
         if (connection != null) {
@@ -78,6 +111,10 @@ public class MainActivity extends Activity {
                 public void processPacket(Packet packet) {
                     Message message = (Message) packet;
                     if (message.getBody() != null) {
+                        //XStream a;
+
+                        Log.i("Message to String",dump(message));
+                        Log.i("Body to String", dump(message.getBodies()));
                         String fromName = StringUtils.parseBareAddress(message.getFrom());
                         messages.add(fromName + ":");
                         messages.add(message.getBody());

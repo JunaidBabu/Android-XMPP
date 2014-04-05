@@ -17,7 +17,7 @@
         android:layout_height="wrap_content"
         android:id="@+id/port"
         android:hint="PORT"
-        android:text="5222"
+        android:text="5223"
         android:layout_gravity="center_horizontal" />
 
     <EditText
@@ -25,7 +25,7 @@
         android:layout_height="wrap_content"
         android:id="@+id/service"
         android:hint="Service"
-        android:text="gmail.com"
+        android:text="127.0.0.1"
         android:layout_gravity="center_horizontal" />
 
     <EditText
@@ -33,7 +33,7 @@
         android:layout_height="wrap_content"
         android:id="@+id/userid"
         android:hint="userid"
-        android:text="junaidvayoli"
+        android:text="user"
         android:layout_gravity="center_horizontal" />
     <EditText
         android:layout_width="match_parent"
@@ -41,7 +41,7 @@
         android:id="@+id/password"
         android:hint="Password"
         android:inputType="textPassword"
-        android:text=""
+        android:text="user"
         android:layout_gravity="center_horizontal" />
 
     <Button
