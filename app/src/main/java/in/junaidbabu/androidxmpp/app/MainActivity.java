@@ -25,6 +25,10 @@ import org.jivesoftware.smack.packet.Packet;
 import org.jivesoftware.smack.provider.ProviderManager;
 import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smackx.ServiceDiscoveryManager;
+import org.jivesoftware.smackx.bytestreams.ibb.provider.CloseIQProvider;
+import org.jivesoftware.smackx.bytestreams.ibb.provider.DataPacketProvider;
+import org.jivesoftware.smackx.bytestreams.ibb.provider.OpenIQProvider;
+import org.jivesoftware.smackx.bytestreams.socks5.provider.BytestreamsProvider;
 import org.jivesoftware.smackx.filetransfer.FileTransfer;
 import org.jivesoftware.smackx.filetransfer.FileTransferListener;
 import org.jivesoftware.smackx.filetransfer.FileTransferManager;
@@ -32,9 +36,9 @@ import org.jivesoftware.smackx.filetransfer.FileTransferNegotiator;
 import org.jivesoftware.smackx.filetransfer.FileTransferRequest;
 import org.jivesoftware.smackx.filetransfer.IncomingFileTransfer;
 import org.jivesoftware.smackx.filetransfer.OutgoingFileTransfer;
-import org.jivesoftware.smackx.provider.BytestreamsProvider;
 import org.jivesoftware.smackx.provider.DiscoverInfoProvider;
 import org.jivesoftware.smackx.provider.DiscoverItemsProvider;
+import org.jivesoftware.smackx.provider.StreamInitiationProvider;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -93,11 +97,13 @@ public class MainActivity extends Activity {
         new ServiceDiscoveryManager(connection);
         FileTransferManager manager = new FileTransferManager(connection);
         OutgoingFileTransfer transfer = manager.createOutgoingFileTransfer(recipient.getText().toString());
+
         File file = new File("/storage/sdcard0/Download/calvin.jpg");
         //File file = new File("/storage/emulated/0/temp_photo.jpg");
 
         try {
             transfer.sendFile(file, "test_file");
+            Log.i("Transferring", "The above line to transfer didn't cup. yet!");
         } catch (XMPPException e) {
             e.printStackTrace();
         }
@@ -125,10 +131,23 @@ public class MainActivity extends Activity {
     //Called by settings when connection is established
     public void setConnection (XMPPConnection connection) {
         this.connection = connection;
+        ProviderManager pm = ProviderManager.getInstance();
         ProviderManager.getInstance().addIQProvider("query","http://jabber.org/protocol/bytestreams", new BytestreamsProvider());
         ProviderManager.getInstance().addIQProvider("query","http://jabber.org/protocol/disco#items", new DiscoverItemsProvider());
         ProviderManager.getInstance().addIQProvider("query","http://jabber.org/protocol/disco#info", new DiscoverInfoProvider());
+        pm.addIQProvider("si", "http://jabber.org/protocol/si", new StreamInitiationProvider());
+
+        pm.addIQProvider("query", "http://jabber.org/protocol/bytestreams", new BytestreamsProvider());
+//        pm.addIQProvider("open", "http://jabber.org/protocol/ibb", new IBBProviders.Open());
+//        pm.addIQProvider("close", "http://jabber.org/protocol/ibb", new IBBProviders.Close());
+//        pm.addExtensionProvider("data", "http://jabber.org/protocol/ibb", new IBBProviders.Data());
+        pm.addIQProvider("open", "http://jabber.org/protocol/ibb", new OpenIQProvider());
+        pm.addIQProvider("data", "http://jabber.org/protocol/ibb", new DataPacketProvider());
+        pm.addIQProvider("close", "http://jabber.org/protocol/ibb", new CloseIQProvider());
+        pm.addExtensionProvider("data", "http://jabber.org/protocol/ibb", new DataPacketProvider());
+
         if (connection != null) {
+
 
             Log.i("Log main", "Phew, connection is not null");
             //Packet listener to get messages sent to logged in user
@@ -168,14 +187,16 @@ public class MainActivity extends Activity {
 
                 XMPPConnection.DEBUG_ENABLED = true;
             }
+
             FileTransferManager manager = new FileTransferManager(connection);
             FileTransferNegotiator.setServiceEnabled(connection, true);
             manager.addFileTransferListener(new FileTransferListener() {
                 public void fileTransferRequest(final FileTransferRequest request) {
+
                     new Thread(){
                         @Override
                         public void run() {
-                            Log.i("We are in the run","No idea who is running");
+                            Log.i("We are in the run","No idea who is running -_- :P");
                             IncomingFileTransfer transfer = request.accept();
                             //File mf = Environment.getExternalStorageDirectory();
                             //File file = new File(mf.getAbsoluteFile()+"/storage/sdcard0/xmpptest/" + transfer.getFileName());
