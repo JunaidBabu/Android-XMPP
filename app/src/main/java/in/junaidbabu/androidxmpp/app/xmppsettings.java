@@ -7,6 +7,8 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
+
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.SASLAuthentication;
 import org.jivesoftware.smack.XMPPConnection;
@@ -76,9 +78,11 @@ public class xmppsettings extends Dialog implements android.view.View.OnClickLis
                 chatClient.setConnection(connection);
                 Log.i("Log", "Life is peace :D");
             } catch (XMPPException ex) {
-                Log.i("Log", "Pain only");
+                Log.e("Log", "Pain only");
                 ex.printStackTrace();
                 chatClient.setConnection(null);
+            } catch (Exception e){
+                Toast.makeText(getContext(), "Oops", Toast.LENGTH_LONG).show();
             }
             return null;
         }

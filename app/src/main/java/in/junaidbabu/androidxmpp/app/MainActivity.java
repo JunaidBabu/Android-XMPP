@@ -1,9 +1,8 @@
 package in.junaidbabu.androidxmpp.app;
 
 import android.app.Activity;
-import android.os.Environment;
-import android.os.Handler;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -15,13 +14,15 @@ import android.widget.EditText;
 import android.widget.ListView;
 
 import org.jivesoftware.smack.PacketListener;
+import org.jivesoftware.smack.Roster;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.filter.MessageTypeFilter;
 import org.jivesoftware.smack.filter.PacketFilter;
-import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
+import org.jivesoftware.smack.packet.PacketExtension;
+import org.jivesoftware.smack.provider.PacketExtensionProvider;
 import org.jivesoftware.smack.provider.ProviderManager;
 import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smackx.ServiceDiscoveryManager;
@@ -36,13 +37,20 @@ import org.jivesoftware.smackx.filetransfer.FileTransferNegotiator;
 import org.jivesoftware.smackx.filetransfer.FileTransferRequest;
 import org.jivesoftware.smackx.filetransfer.IncomingFileTransfer;
 import org.jivesoftware.smackx.filetransfer.OutgoingFileTransfer;
+import org.jivesoftware.smackx.packet.LastActivity;
+import org.jivesoftware.smackx.packet.OfflineMessageInfo;
+import org.jivesoftware.smackx.packet.OfflineMessageRequest;
+import org.jivesoftware.smackx.provider.DelayInformationProvider;
 import org.jivesoftware.smackx.provider.DiscoverInfoProvider;
 import org.jivesoftware.smackx.provider.DiscoverItemsProvider;
 import org.jivesoftware.smackx.provider.StreamInitiationProvider;
+import org.xmlpull.v1.XmlPullParser;
 
 import java.io.File;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
+
+import static android.util.Log.wtf;
+import static org.jivesoftware.smackx.LastActivityManager.getLastActivity;
 
 public class MainActivity extends Activity {
 
@@ -74,17 +82,45 @@ public class MainActivity extends Activity {
 
             @Override
             public void onClick(View v) {
-                String to = recipient.getText().toString();
+                final String to = recipient.getText().toString()+"@127.0.0.1";
                 String text1 = text.getText().toString();
+
+                Roster roster = connection.getRoster();
+                synchronized (roster) {
+
+                }
+                Log.e("Roster list", roster.getEntries().toString());
 
                 //Message msg = new Message();
                 CustomMessage msg = new CustomMessage();
+                Packet packet = new Packet() {
+                    @Override
+                    public String toXML() {
+                        //String xExtension = "<message id=\"V2KJS-13\" to=\"junaid@127.0.0.1\" type=\"chat\" CustomStanza=\"this was a custom text\"><body>here is a message</body></message>";
+//                        String xExtension = //"<iq type='get' id='v3'><getservertime xmlns='urn:xmpp:mrpresence'/></iq>";
+//                        "<iq type='get' id='id_for_archive'>\n" +
+//                                "<list xmlns='urn:xmpp:archive'\n" +
+//                                "with='junaid@127.0.0.1'>\n" +
+//                                "<set xmlns='http://jabber.org/protocol/rsm'>\n" +
+//                                "<max>30</max>\n" +
+//                                "</set>\n" +
+//                                "</list>\n" +
+//                                "</iq>";
+                        String xExtension = "<iq type='get' id='archive_id_setmanually'><list xmlns='urn:xmpp:archive' with='junaid@127.0.0.1'><set xmlns='http://jabber.org/protocol/rsm'><max>10</max></set></list></iq>";
+                        return xExtension;
+                    }
+                };
+                //packet.set
                 msg.setTo(to);
                 msg.setType(Message.Type.chat);
                 msg.setBody(text1);
+
                 msg.setCustomStanza("this was a custom text");
                 Log.i("Custom message about to be sent", msg.toXML());
+                Log.i("IQ Sent", packet.toXML());
                 connection.sendPacket(msg);
+                connection.sendPacket(packet);
+                //connection.sendPacket(msg);
                 messages.add(connection.getUser() + ":");
                 messages.add(text1);
                 setListAdapter();
@@ -95,6 +131,13 @@ public class MainActivity extends Activity {
     }
     public void send(View v){
         new ServiceDiscoveryManager(connection);
+        try {
+            LastActivity lastActivity =  getLastActivity(connection, recipient.getText().toString());
+            Log.e("SOme data" ,lastActivity.getStatusMessage().toString()+" "+Long.toString(lastActivity.lastActivity));
+            Log.e("Some more data", Long.toString(lastActivity.getIdleTime()));
+        } catch (XMPPException e) {
+            e.printStackTrace();
+        }
         FileTransferManager manager = new FileTransferManager(connection);
         OutgoingFileTransfer transfer = manager.createOutgoingFileTransfer(recipient.getText().toString());
 
@@ -128,10 +171,16 @@ public class MainActivity extends Activity {
             System.out.println("Success");
         }
     }
+
     //Called by settings when connection is established
     public void setConnection (XMPPConnection connection) {
         this.connection = connection;
+        this.connection.DEBUG_ENABLED = true;
         ProviderManager pm = ProviderManager.getInstance();
+        /*
+        *  The following lines are critical for file handling in xmpp
+        *
+        */
         ProviderManager.getInstance().addIQProvider("query","http://jabber.org/protocol/bytestreams", new BytestreamsProvider());
         ProviderManager.getInstance().addIQProvider("query","http://jabber.org/protocol/disco#items", new DiscoverItemsProvider());
         ProviderManager.getInstance().addIQProvider("query","http://jabber.org/protocol/disco#info", new DiscoverInfoProvider());
@@ -145,6 +194,13 @@ public class MainActivity extends Activity {
         pm.addIQProvider("data", "http://jabber.org/protocol/ibb", new DataPacketProvider());
         pm.addIQProvider("close", "http://jabber.org/protocol/ibb", new CloseIQProvider());
         pm.addExtensionProvider("data", "http://jabber.org/protocol/ibb", new DataPacketProvider());
+        pm.addExtensionProvider("x","jabber:x:delay", new DelayInformationProvider());
+        //  Offline Message Requests
+        pm.addIQProvider("offline","http://jabber.org/protocol/offline", new OfflineMessageRequest.Provider());
+
+//  Offline Message Indicator
+        pm.addExtensionProvider("offline","http://jabber.org/protocol/offline", new OfflineMessageInfo.Provider());
+//        pm.addExtensionProvider("html", "http://jabber.org/protocol/xhtml-im", new XMLPlayerListProvider());
 
         if (connection != null) {
 
@@ -152,30 +208,60 @@ public class MainActivity extends Activity {
             Log.i("Log main", "Phew, connection is not null");
             //Packet listener to get messages sent to logged in user
             PacketFilter filter = new MessageTypeFilter(Message.Type.chat);
-            connection.addPacketListener(new PacketListener() {
-                public void processPacket(Packet packet) {      // For messages with custom item, we need custom Packet itself. No idea how to do that right now. I'll come back later.
-                    Log.i("Packet to xml", packet.toXML());
+//            connection.addPacketListener(new PacketListener() {
+//                public void processPacket(Packet packet) {      // For messages with custom item, we need custom Packet itself. No idea how to do that right now. I'll come back later.
+//                    Log.i("Packet to xml", packet.toXML());
+//
+//                    //CustomMessage message = (CustomMessage) packet;
+//
+//                    Message message = (Message) packet;
+//                    if (message.getBody() != null) {
+//                        //XStream a;
+//                        //  Log.i("Entire XML", message.toXML());   // This should give the entire packet
+//                        //  Log.i("Custom text", message.getCustomStanza());
+//
+//                        String fromName = StringUtils.parseBareAddress(message.getFrom());
+//                        messages.add(fromName + ":");
+//                        messages.add(message.getBody());
+//                        handler.post(new Runnable() {
+//                            public void run() {
+//                                setListAdapter();
+//                            }
+//                        });
+//                    }
+//                }
+//            }, filter);
+            connection.addPacketListener(new PacketListener()
+            {
+                @Override
+                public void processPacket(Packet p)
+                {
 
-                    //CustomMessage message = (CustomMessage) packet;
-
-                    Message message = (Message) packet;
+                    Log.v("All kinds of packet", p.toXML());
+                    Log.e("Extension type", p.getExtension("type").toString());
+                    wtf("Asdf", "Asfd");
+                    Message message = (Message) p;
                     if (message.getBody() != null) {
                         //XStream a;
-                        Log.i("Entire XML", message.toXML());   // This should give the entire packet
-                      //  Log.i("Custom text", message.getCustomStanza());
+                        //  Log.i("Entire XML", message.toXML());   // This should give the entire packet
+                        //  Log.i("Custom text", message.getCustomStanza());
 
                         String fromName = StringUtils.parseBareAddress(message.getFrom());
                         messages.add(fromName + ":");
                         messages.add(message.getBody());
-                        handler.post(new Runnable(){
+                        handler.post(new Runnable() {
                             public void run() {
                                 setListAdapter();
                             }
                         });
                     }
                 }
-            }, filter);
-
+            }, new PacketFilter() {
+                @Override
+                public boolean accept(Packet packet) {
+                    return true;
+                }
+            });
             //File receiving
             ServiceDiscoveryManager sdm = ServiceDiscoveryManager.getInstanceFor(connection);
             if(sdm == null)
@@ -188,43 +274,51 @@ public class MainActivity extends Activity {
                 XMPPConnection.DEBUG_ENABLED = true;
             }
 
-            FileTransferManager manager = new FileTransferManager(connection);
-            FileTransferNegotiator.setServiceEnabled(connection, true);
-            manager.addFileTransferListener(new FileTransferListener() {
-                public void fileTransferRequest(final FileTransferRequest request) {
-
-                    new Thread(){
-                        @Override
-                        public void run() {
-                            Log.i("We are in the run","No idea who is running -_- :P");
-                            IncomingFileTransfer transfer = request.accept();
-                            //File mf = Environment.getExternalStorageDirectory();
-                            //File file = new File(mf.getAbsoluteFile()+"/storage/sdcard0/xmpptest/" + transfer.getFileName());
-                            File file = new File("/storage/sdcard0/xmpptest/" + transfer.getFileName());
-                            try{
-                                transfer.recieveFile(file);
-                                while(!transfer.isDone()) {
-                                    try{
-                                        Thread.sleep(1000L);
-                                    }catch (Exception e) {
-                                        Log.e("", e.getMessage());
-                                    }
-                                    if(transfer.getStatus().equals(FileTransfer.Status.error)) {
-                                        Log.e("ERROR!!! ", transfer.getError() + "");
-                                    }
-                                    if(transfer.getException() != null) {
-                                        transfer.getException().printStackTrace();
-                                    }
-                                }
-                            }catch (Exception e) {
-                                Log.e("", e.getMessage());
-                            }
-                        };
-                    }.start();
-                }
-            });
+//            FileTransferManager manager = new FileTransferManager(connection);
+//            FileTransferNegotiator.setServiceEnabled(connection, true);
+//            manager.addFileTransferListener(new FileTransferListener() {
+//                public void fileTransferRequest(final FileTransferRequest request) {
+//
+//                    new Thread(){
+//                        @Override
+//                        public void run() {
+//                            Log.i("We are in the run", "No idea who is running -_- :P");
+//                            IncomingFileTransfer transfer = request.accept();
+//                            messages.add(request.getRequestor() + ":");
+//                            messages.add(request.getFileName());
+//                            handler.post(new Runnable(){
+//                                public void run() {
+//                                    setListAdapter();
+//                                }
+//                            });
+//                            //File mf = Environment.getExternalStorageDirectory();
+//                            //File file = new File(mf.getAbsoluteFile()+"/storage/sdcard0/xmpptest/" + transfer.getFileName());
+//                            File file = new File("/storage/sdcard0/xmpptest/" + transfer.getFileName());
+//                            try{
+//                                transfer.recieveFile(file);
+//                                while(!transfer.isDone()) {
+//                                    try{
+//                                        Thread.sleep(1000L);
+//                                    }catch (Exception e) {
+//                                        Log.e("", e.getMessage());
+//                                    }
+//                                    if(transfer.getStatus().equals(FileTransfer.Status.error)) {
+//                                        Log.e("ERROR!!! ", transfer.getError() + "");
+//                                    }
+//                                    if(transfer.getException() != null) {
+//                                        transfer.getException().printStackTrace();
+//                                    }
+//                                }
+//                            }catch (Exception e) {
+//                                Log.e("", e.getMessage());
+//                            }
+//                        };
+//                    }.start();
+//                }
+//            });
         }
     }
+
 
     private void setListAdapter() {
         ArrayAdapter<String> adapter = new ArrayAdapter<String>
