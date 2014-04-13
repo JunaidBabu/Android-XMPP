@@ -122,13 +122,16 @@ public class MainActivity extends Activity {
                     @Override public String getChildElementXML()
                     {
 
-                        return "<list xmlns='urn:xmpp:archive'/>";
+                        return "<list xmlns='urn:xmpp:archive'><set xmlns=\"http://jabber.org/protocol/rsm\">\n" +
+                                "      <max>5</max>\n" +
+                                "    </set>\n" +
+                                "  </list>";
 
                     }
                 };
                 iq.setType(IQ.Type.GET);
 
-                iq.setFrom("junaid@127.0.0.1");
+                //iq.setFrom("junaid@127.0.0.1");
 //                msg.setThread("thread_set_to_this");
 //                //packet.set
 //                msg.setTo(to);
