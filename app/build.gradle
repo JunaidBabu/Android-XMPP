@@ -23,5 +23,5 @@ android {
 dependencies {
     compile 'com.android.support:appcompat-v7:+'
     //compile 'jivesoftware:smack:3.1.0'
-    compile fileTree(dir: 'libs', include: ['asmack-android-7.jar'])
+    compile fileTree(dir: 'libs', include: ['asmack-android-19-0.8.10.jar'])
 }

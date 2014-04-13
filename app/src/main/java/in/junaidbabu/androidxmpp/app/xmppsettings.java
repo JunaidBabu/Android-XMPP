@@ -82,7 +82,8 @@ public class xmppsettings extends Dialog implements android.view.View.OnClickLis
                 ex.printStackTrace();
                 chatClient.setConnection(null);
             } catch (Exception e){
-                Toast.makeText(getContext(), "Oops", Toast.LENGTH_LONG).show();
+                e.printStackTrace();
+               // Toast.makeText(getContext(), "Oops", Toast.LENGTH_LONG).show();
             }
             return null;
         }

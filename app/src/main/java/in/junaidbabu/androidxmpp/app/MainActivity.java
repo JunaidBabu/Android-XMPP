@@ -13,15 +13,18 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 
+import org.jivesoftware.smack.Chat;
 import org.jivesoftware.smack.PacketListener;
 import org.jivesoftware.smack.Roster;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.filter.MessageTypeFilter;
 import org.jivesoftware.smack.filter.PacketFilter;
+import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
 import org.jivesoftware.smack.packet.PacketExtension;
+import org.jivesoftware.smack.provider.IQProvider;
 import org.jivesoftware.smack.provider.PacketExtensionProvider;
 import org.jivesoftware.smack.provider.ProviderManager;
 import org.jivesoftware.smack.util.StringUtils;
@@ -48,6 +51,8 @@ import org.xmlpull.v1.XmlPullParser;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Logger;
 
 import static android.util.Log.wtf;
 import static org.jivesoftware.smackx.LastActivityManager.getLastActivity;
@@ -106,28 +111,42 @@ public class MainActivity extends Activity {
 //                                "</set>\n" +
 //                                "</list>\n" +
 //                                "</iq>";
-                        String xExtension = "<iq type='get' id='archive_id_setmanually'><list xmlns='urn:xmpp:archive' with='junaid@127.0.0.1'><set xmlns='http://jabber.org/protocol/rsm'><max>10</max></set></list></iq>";
+                        String xExtension = "<iq type='get' id='archive_id_setmanually'><list xmlns='urn:xmpp:archive'><set xmlns='http://jabber.org/protocol/rsm'><max xmlns='http://jabber.org/protocol/rsm'>10</max></set></list></iq>";
                         return xExtension;
                     }
                 };
-                //packet.set
-                msg.setTo(to);
-                msg.setType(Message.Type.chat);
-                msg.setBody(text1);
 
-                msg.setCustomStanza("this was a custom text");
-                Log.i("Custom message about to be sent", msg.toXML());
-                Log.i("IQ Sent", packet.toXML());
-                connection.sendPacket(msg);
-                connection.sendPacket(packet);
+                IQ iq = new IQ()
+                {
+
+                    @Override public String getChildElementXML()
+                    {
+
+                        return "<list xmlns='urn:xmpp:archive'/>";
+
+                    }
+                };
+                iq.setType(IQ.Type.GET);
+
+                iq.setFrom("junaid@127.0.0.1");
+//                msg.setThread("thread_set_to_this");
+//                //packet.set
+//                msg.setTo(to);
+//                msg.setType(Message.Type.chat);
+//                msg.setBody(text1);
+//
+//                msg.setCustomStanza("this was a custom text");
+                //Log.i("Custom message about to be sent", msg.toXML());
+                Log.i("IQ Sent", iq.toXML());
                 //connection.sendPacket(msg);
+                connection.sendPacket(iq);
                 messages.add(connection.getUser() + ":");
-                messages.add(text1);
+                messages.add("Packet sent: "+iq.toXML());
                 setListAdapter();
             }
         });
 
-
+        settings.show();
     }
     public void send(View v){
         new ServiceDiscoveryManager(connection);
@@ -172,6 +191,24 @@ public class MainActivity extends Activity {
         }
     }
 
+    public class ChatListListener implements PacketListener {
+
+        private MainActivity activity;
+
+        public ChatListListener(MainActivity activity)
+        {
+            this.activity = activity;
+        }
+
+        @Override
+        public void processPacket(Packet packet)
+        {
+            //activity.notifyPacketReceived();
+            Log.v("Packet recieved", packet.toXML());
+           // System.out.println(packet.toXML());
+        }
+    }
+
     //Called by settings when connection is established
     public void setConnection (XMPPConnection connection) {
         this.connection = connection;
@@ -195,8 +232,10 @@ public class MainActivity extends Activity {
         pm.addIQProvider("close", "http://jabber.org/protocol/ibb", new CloseIQProvider());
         pm.addExtensionProvider("data", "http://jabber.org/protocol/ibb", new DataPacketProvider());
         pm.addExtensionProvider("x","jabber:x:delay", new DelayInformationProvider());
+        pm.addIQProvider("list", "urn:xmpp:archive", new ListIQProvider());
         //  Offline Message Requests
         pm.addIQProvider("offline","http://jabber.org/protocol/offline", new OfflineMessageRequest.Provider());
+        //pm.addIQProvider("list", "urn:xmpp:archive", new ListIQProvider());
 
 //  Offline Message Indicator
         pm.addExtensionProvider("offline","http://jabber.org/protocol/offline", new OfflineMessageInfo.Provider());
@@ -238,24 +277,24 @@ public class MainActivity extends Activity {
                 {
 
                     Log.v("All kinds of packet", p.toXML());
-                    Log.e("Extension type", p.getExtension("type").toString());
-                    wtf("Asdf", "Asfd");
-                    Message message = (Message) p;
-                    if (message.getBody() != null) {
+                    //Log.e("Extension type", p.getExtension("type").toString());
+                    //wtf("Asdf", "Asfd");
+                    //Message message = (Message) p;
+                   // if (message.getBody() != null) {
                         //XStream a;
                         //  Log.i("Entire XML", message.toXML());   // This should give the entire packet
                         //  Log.i("Custom text", message.getCustomStanza());
 
-                        String fromName = StringUtils.parseBareAddress(message.getFrom());
-                        messages.add(fromName + ":");
-                        messages.add(message.getBody());
+                       // String fromName = StringUtils.parseBareAddress(message.getFrom());
+                       // messages.add(fromName + ":");
+                        messages.add("Recieved: "+ p.toXML());
                         handler.post(new Runnable() {
                             public void run() {
                                 setListAdapter();
                             }
                         });
                     }
-                }
+                //}
             }, new PacketFilter() {
                 @Override
                 public boolean accept(Packet packet) {
@@ -345,4 +384,5 @@ public class MainActivity extends Activity {
         }
 
     }
+
 }
