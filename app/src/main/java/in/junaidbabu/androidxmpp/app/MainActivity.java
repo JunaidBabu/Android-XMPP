@@ -47,6 +47,8 @@ import org.jivesoftware.smackx.provider.DelayInformationProvider;
 import org.jivesoftware.smackx.provider.DiscoverInfoProvider;
 import org.jivesoftware.smackx.provider.DiscoverItemsProvider;
 import org.jivesoftware.smackx.provider.StreamInitiationProvider;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.xmlpull.v1.XmlPullParser;
 
 import java.io.File;
@@ -96,8 +98,8 @@ public class MainActivity extends Activity {
                 }
                 Log.e("Roster list", roster.getEntries().toString());
 
-                //Message msg = new Message();
-                CustomMessage msg = new CustomMessage();
+                Message msg = new Message();
+//                CustomMessage msg = new CustomMessage();
                 Packet packet = new Packet() {
                     @Override
                     public String toXML() {
@@ -132,19 +134,26 @@ public class MainActivity extends Activity {
                 iq.setType(IQ.Type.GET);
 
                 //iq.setFrom("junaid@127.0.0.1");
-//                msg.setThread("thread_set_to_this");
-//                //packet.set
-//                msg.setTo(to);
-//                msg.setType(Message.Type.chat);
-//                msg.setBody(text1);
+                msg.setThread("thread_set_to_this");
+                //packet.set
+                msg.setTo(to);
+                msg.setType(Message.Type.chat);
+                JSONObject body = new JSONObject();
+                try {
+                    body.put("body", text1);
+                    body.put("extra_tags", "SOmething here");
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                msg.setBody(body.toString());
 //
 //                msg.setCustomStanza("this was a custom text");
-                //Log.i("Custom message about to be sent", msg.toXML());
-                Log.i("IQ Sent", iq.toXML());
-                //connection.sendPacket(msg);
-                connection.sendPacket(iq);
+                Log.i("Custom message about to be sent", msg.toXML());
+                //Log.i("IQ Sent", iq.toXML());
+                connection.sendPacket(msg);
+                //connection.sendPacket(iq);
                 messages.add(connection.getUser() + ":");
-                messages.add("Packet sent: "+iq.toXML());
+                messages.add("Packet sent: "+msg.toXML());
                 setListAdapter();
             }
         });
@@ -157,7 +166,7 @@ public class MainActivity extends Activity {
             LastActivity lastActivity =  getLastActivity(connection, recipient.getText().toString());
             Log.e("SOme data" ,lastActivity.getStatusMessage().toString()+" "+Long.toString(lastActivity.lastActivity));
             Log.e("Some more data", Long.toString(lastActivity.getIdleTime()));
-        } catch (XMPPException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         FileTransferManager manager = new FileTransferManager(connection);
@@ -250,60 +259,69 @@ public class MainActivity extends Activity {
             Log.i("Log main", "Phew, connection is not null");
             //Packet listener to get messages sent to logged in user
             PacketFilter filter = new MessageTypeFilter(Message.Type.chat);
-//            connection.addPacketListener(new PacketListener() {
-//                public void processPacket(Packet packet) {      // For messages with custom item, we need custom Packet itself. No idea how to do that right now. I'll come back later.
-//                    Log.i("Packet to xml", packet.toXML());
-//
-//                    //CustomMessage message = (CustomMessage) packet;
-//
-//                    Message message = (Message) packet;
-//                    if (message.getBody() != null) {
-//                        //XStream a;
-//                        //  Log.i("Entire XML", message.toXML());   // This should give the entire packet
-//                        //  Log.i("Custom text", message.getCustomStanza());
-//
-//                        String fromName = StringUtils.parseBareAddress(message.getFrom());
-//                        messages.add(fromName + ":");
-//                        messages.add(message.getBody());
-//                        handler.post(new Runnable() {
-//                            public void run() {
-//                                setListAdapter();
-//                            }
-//                        });
-//                    }
-//                }
-//            }, filter);
-            connection.addPacketListener(new PacketListener()
-            {
-                @Override
-                public void processPacket(Packet p)
-                {
+            connection.addPacketListener(new PacketListener() {
+                public void processPacket(Packet packet) {      // For messages with custom item, we need custom Packet itself. No idea how to do that right now. I'll come back later.
+                    Log.i("Packet to xml", packet.toXML());
 
-                    Log.v("All kinds of packet", p.toXML());
-                    //Log.e("Extension type", p.getExtension("type").toString());
-                    //wtf("Asdf", "Asfd");
-                    //Message message = (Message) p;
-                   // if (message.getBody() != null) {
+                    //CustomMessage message = (CustomMessage) packet;
+
+                    Message message = (Message) packet;
+                    if (message.getBody() != null) {
                         //XStream a;
                         //  Log.i("Entire XML", message.toXML());   // This should give the entire packet
                         //  Log.i("Custom text", message.getCustomStanza());
 
-                       // String fromName = StringUtils.parseBareAddress(message.getFrom());
-                       // messages.add(fromName + ":");
-                        messages.add("Recieved: "+ p.toXML());
+                        String fromName = StringUtils.parseBareAddress(message.getFrom());
+                        messages.add(fromName + ":");
+                        try {
+                            JSONObject obj = new JSONObject(message.getBody());
+                            messages.add("body: "+obj.getString("body"));
+                            messages.add("Extra: "+obj.getString("extra_tags"));
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+
                         handler.post(new Runnable() {
                             public void run() {
                                 setListAdapter();
                             }
                         });
                     }
-                //}
-            }, new PacketFilter() {
-                @Override
-                public boolean accept(Packet packet) {
-                    return true;
                 }
-            });
+            }, filter);
+
+            // Listener which filters nothing, basically to read all pings.
+//            connection.addPacketListener(new PacketListener()
+//            {
+//                @Override
+//                public void processPacket(Packet p)
+//                {
+//
+//                    Log.v("All kinds of packet", p.toXML());
+//                    //Log.e("Extension type", p.getExtension("type").toString());
+//                    //wtf("Asdf", "Asfd");
+//                    //Message message = (Message) p;
+//                   // if (message.getBody() != null) {
+//                        //XStream a;
+//                        //  Log.i("Entire XML", message.toXML());   // This should give the entire packet
+//                        //  Log.i("Custom text", message.getCustomStanza());
+//
+//                       // String fromName = StringUtils.parseBareAddress(message.getFrom());
+//                       // messages.add(fromName + ":");
+//                        messages.add("Recieved: "+ p.toXML());
+//                        handler.post(new Runnable() {
+//                            public void run() {
+//                                setListAdapter();
+//                            }
+//                        });
+//                    }
+//                //}
+//            }, new PacketFilter() {
+//                @Override
+//                public boolean accept(Packet packet) {
+//                    return true;
+//                }
+//            });
             //File receiving
             ServiceDiscoveryManager sdm = ServiceDiscoveryManager.getInstanceFor(connection);
             if(sdm == null)

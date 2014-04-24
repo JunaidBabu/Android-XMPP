@@ -51,6 +51,7 @@ public class ListIQ extends IQ
         builder.append(set.toXml());
         builder.append("</list>");
         return builder.toString();
+
     }
 
     public static class Chat {
